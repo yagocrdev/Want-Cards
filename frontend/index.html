@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Want Cards - MTG</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: black;
+    color: white;
+    display: flex;
+    justify-content: center;
+}
+
+.main {
+    width: 900px;
+    min-height: 100vh;
+    background: url("https://cards.scryfall.io/back.png") no-repeat center center;
+    background-size: 500px;
+    background-color: #111;
+    padding: 20px;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.search-container {
+    position: relative;
+    width: 400px;
+    margin: 0 auto 30px auto;
+}
+
+input {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+}
+
+.suggestions {
+    position: absolute;
+    width: 100%;
+    background: #1e1e1e;
+    border-radius: 8px;
+    max-height: 250px;
+    overflow-y: auto;
+    margin-top: 5px;
+    z-index: 10;
+}
+
+.suggestion-item {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    cursor: pointer;
+    gap: 10px;
+}
+
+.suggestion-item:hover {
+    background: #333;
+}
+
+.suggestion-item img {
+    width: 40px;
+    border-radius: 5px;
+}
+
+.grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+}
+
+.card {
+    background: #1e1e1e;
+    padding: 10px;
+    border-radius: 12px;
+    width: 200px;
+    text-align: center;
+    transition: 0.2s;
+}
+
+.card.procurando {
+    border: 3px solid white;
+}
+
+.card img {
+    width: 100%;
+    border-radius: 8px;
+}
+
+.preco {
+    color: #00ff88;
+    font-weight: bold;
+}
+
+button {
+    margin: 5px 3px;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.btn-procurando {
+    background: #444;
+    color: white;
+}
+
+.btn-consegui {
+    background: #00aa55;
+    color: white;
+}
+
+.total {
+    text-align: center;
+    font-size: 20px;
+    margin-top: 30px;
+    color: #00ff88;
+}
+</style>
+</head>
+
+<body>
+
+<div class="main">
+
+<h1>🧙 Want Cards - MTG</h1>
+
+<div class="search-container">
+    <input type="text" id="busca" placeholder="Digite o nome da carta..." oninput="buscarSugestoes()">
+    <div id="sugestoes" class="suggestions"></div>
+</div>
+
+<h2 style="text-align:center;">Minha Lista</h2>
+<div id="lista" class="grid"></div>
+
+<div id="total" class="total">Total: R$ 0.00</div>
+
+</div>
+
+<script>
+let listaCartas = JSON.parse(localStorage.getItem("cartas")) || [];
+let totalGeral = 0;
+
+window.onload = () => {
+    renderizarLista();
+};
+
+async function buscarSugestoes() {
+    const nome = document.getElementById("busca").value;
+    if (nome.length < 2) {
+        document.getElementById("sugestoes").innerHTML = "";
+        return;
+    }
+
+    const response = await fetch(
+        `https://api.scryfall.com/cards/autocomplete?q=${encodeURIComponent(nome)}`
+    );
+    const data = await response.json();
+
+    const sugestoesDiv = document.getElementById("sugestoes");
+    sugestoesDiv.innerHTML = "";
+
+    for (let nomeCarta of data.data.slice(0, 8)) {
+        const cartaResp = await fetch(
+            `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(nomeCarta)}`
+        );
+        const carta = await cartaResp.json();
+        if (!carta.image_uris) continue;
+
+        const div = document.createElement("div");
+        div.classList.add("suggestion-item");
+
+        div.innerHTML = `
+            <img src="${carta.image_uris.small}">
+            <span>${carta.name}</span>
+        `;
+
+        div.onclick = () => {
+            adicionarCarta(carta);
+            sugestoesDiv.innerHTML = "";
+            document.getElementById("busca").value = "";
+        };
+
+        sugestoesDiv.appendChild(div);
+    }
+}
+
+async function buscarPreco(nomeCarta) {
+    const response = await fetch(
+        `http://localhost:3000/api/preco?nome=${encodeURIComponent(nomeCarta)}`
+    );
+    const data = await response.json();
+    return data.preco;
+}
+
+async function adicionarCarta(carta) {
+    const preco = await buscarPreco(carta.name);
+
+    const novaCarta = {
+        id: Date.now(),
+        nome: carta.name,
+        imagem: carta.image_uris.normal,
+        preco: preco,
+        procurando: false
+    };
+
+    listaCartas.push(novaCarta);
+    salvar();
+    renderizarLista();
+}
+
+function salvar() {
+    localStorage.setItem("cartas", JSON.stringify(listaCartas));
+}
+
+function renderizarLista() {
+    const lista = document.getElementById("lista");
+    lista.innerHTML = "";
+    totalGeral = 0;
+
+    listaCartas.forEach(carta => {
+
+        const div = document.createElement("div");
+        div.classList.add("card");
+
+        if (carta.procurando) {
+            div.classList.add("procurando");
+        }
+
+        div.innerHTML = `
+            <img src="${carta.imagem}">
+            <p>${carta.nome}</p>
+            <p class="preco">${carta.preco}</p>
+            <button class="btn-procurando" onclick="toggleProcurando(${carta.id})">
+                Procurando
+            </button>
+            <button class="btn-consegui" onclick="removerCarta(${carta.id})">
+                Já consegui
+            </button>
+        `;
+
+        lista.appendChild(div);
+
+        const valor = parseFloat(
+            carta.preco.replace("R$", "").replace(",", ".")
+        );
+
+        if (!isNaN(valor)) totalGeral += valor;
+    });
+
+    document.getElementById("total").innerText =
+        "Total: R$ " + totalGeral.toFixed(2);
+}
+
+function toggleProcurando(id) {
+    listaCartas = listaCartas.map(c =>
+        c.id === id ? { ...c, procurando: !c.procurando } : c
+    );
+    salvar();
+    renderizarLista();
+}
+
+function removerCarta(id) {
+    listaCartas = listaCartas.filter(c => c.id !== id);
+    salvar();
+    renderizarLista();
+}
+</script>
+
+</body>
+</html>
