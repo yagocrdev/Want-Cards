@@ -4,17 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Want Cards - MTG</title>
-
     <!-- Força atualização rápida (anti-cache) -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-
     <style>
         body {
             margin: 0;
             font-family: Arial, sans-serif;
-            background: black;
+            background: #0d0d0d;
             color: white;
             display: flex;
             justify-content: center;
@@ -26,77 +24,102 @@
             padding: 20px;
             box-sizing: border-box;
             background: url("https://cards.scryfall.io/back.png") no-repeat center center;
-            background-size: 600px auto; /* Aumentado para ficar mais visível */
-            background-attachment: fixed; /* Opcional: faz o fundo ficar "fixo" ao scrollar */
+            background-size: 700px auto;
+            background-attachment: fixed;
         }
-        h1, h2 { text-align: center; }
+        h1, h2 { 
+            text-align: center; 
+            text-shadow: 0 0 10px #00ff88;
+        }
         .search-container {
             position: relative;
-            max-width: 400px;
-            margin: 20px auto;
+            max-width: 420px;
+            margin: 30px auto;
             display: none;
         }
         input {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             border-radius: 8px;
             border: none;
+            font-size: 16px;
         }
         .suggestions {
             position: absolute;
             width: 100%;
             background: #1e1e1e;
             border-radius: 8px;
-            max-height: 250px;
+            max-height: 280px;
             overflow-y: auto;
-            margin-top: 5px;
+            margin-top: 6px;
             z-index: 10;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.7);
         }
         .suggestion-item {
             display: flex;
             align-items: center;
-            padding: 8px;
+            padding: 10px;
             cursor: pointer;
-            gap: 10px;
+            gap: 12px;
         }
-        .suggestion-item:hover { background: #333; }
+        .suggestion-item:hover { background: #2a2a2a; }
         .suggestion-item img {
-            width: 40px;
+            width: 48px;
             height: auto;
-            border-radius: 5px;
+            border-radius: 6px;
         }
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 24px;
+            margin-top: 30px;
         }
         .card {
             background: #1a1a1a;
-            padding: 10px;
-            border-radius: 12px;
+            padding: 12px;
+            border-radius: 14px;
             text-align: center;
-            transition: 0.2s;
+            transition: all 0.18s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
-        .card.procurando { border: 2px solid #00ff88; }
+        .card:hover { transform: translateY(-6px); }
+        .card.procurando { 
+            border: 2.5px solid #00ff88; 
+            box-shadow: 0 0 16px #00ff8844;
+        }
         .card img {
             width: 100%;
-            max-width: 180px;
+            max-width: 200px;
             height: auto;
             border-radius: 10px;
+            image-rendering: crisp-edges;
         }
-        .price { color: #00ff88; font-weight: bold; margin: 5px 0; }
+        .price { 
+            color: #00ff88; 
+            font-weight: bold; 
+            font-size: 1.1em; 
+            margin: 8px 0 4px;
+        }
+        .price.none { color: #888; }
         button {
-            margin: 4px;
-            padding: 6px 8px;
+            margin: 6px 4px;
+            padding: 8px 12px;
             border: none;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 13px;
+            transition: 0.15s;
         }
         .btn-procurando { background: #444; color: white; }
+        .btn-procurando:hover { background: #555; }
         .btn-remover { background: #aa0000; color: white; }
-        .admin-info { text-align: center; font-size: 12px; color: #777; margin-top: 15px; }
+        .btn-remover:hover { background: #cc0000; }
+        .admin-info { 
+            text-align: center; 
+            font-size: 13px; 
+            color: #777; 
+            margin-top: 30px; 
+        }
     </style>
 </head>
 <body>
@@ -115,8 +138,7 @@
 
 <script>
     const ADMIN_PASSWORD = "mtg123";
-    const COTACAO_DOLAR = 5.00;
-
+    const COTACAO_DOLAR = 5.00; // Atualize este valor periodicamente
     let isAdmin = sessionStorage.getItem("adminMTG") === "true";
     let listaCartas = JSON.parse(localStorage.getItem("cartasMTG")) || [];
 
@@ -125,7 +147,7 @@
     }
 
     document.addEventListener("keydown", (e) => {
-        if (e.ctrlKey && e.shiftKey && e.key === "A") {
+        if (e.ctrlKey && e.shiftKey && e.key.toUpperCase() === "A") {
             const senha = prompt("Digite a senha de administrador:");
             if (senha === ADMIN_PASSWORD) {
                 sessionStorage.setItem("adminMTG", "true");
@@ -140,7 +162,6 @@
 
     async function buscarSugestoes() {
         if (!isAdmin) return;
-
         const nome = document.getElementById("busca").value.trim();
         if (nome.length < 2) {
             document.getElementById("sugestoes").innerHTML = "";
@@ -149,6 +170,7 @@
 
         try {
             const resp = await fetch(`https://api.scryfall.com/cards/autocomplete?q=${encodeURIComponent(nome)}`);
+            if (!resp.ok) throw new Error("Erro na autocomplete");
             const data = await resp.json();
 
             const sugestoesDiv = document.getElementById("sugestoes");
@@ -159,14 +181,14 @@
                     const cartaResp = await fetch(`https://api.scryfall.com/cards/named?exact=${encodeURIComponent(nomeCarta)}`);
                     const carta = await cartaResp.json();
 
-                    let img = carta.image_uris?.small;
+                    let img = carta.image_uris?.small || 'https://via.placeholder.com/48?text=?';
                     if (carta.card_faces?.[0]?.image_uris?.small) {
                         img = carta.card_faces[0].image_uris.small;
                     }
 
                     const div = document.createElement("div");
                     div.classList.add("suggestion-item");
-                    div.innerHTML = `<img src="${img || 'https://via.placeholder.com/40?text=?'}"><span>${nomeCarta}</span>`;
+                    div.innerHTML = `<img src="${img}"><span>${nomeCarta}</span>`;
                     div.addEventListener("click", () => {
                         adicionarCartaPorNome(nomeCarta);
                         sugestoesDiv.innerHTML = "";
@@ -187,8 +209,8 @@
             const query = `!"${nomeCarta}"`;
             const resp = await fetch(`https://api.scryfall.com/cards/search?q=${encodeURIComponent(query)}&order=usd`);
             if (!resp.ok) throw new Error(`Erro HTTP ${resp.status}`);
-
             const data = await resp.json();
+
             if (!data.data?.length) {
                 alert(`Carta "${nomeCarta}" não encontrada na Scryfall.`);
                 return;
@@ -198,6 +220,7 @@
             let imagemEscolhida = null;
 
             for (const carta of data.data) {
+                // Preços corretos da API atual (strings ou null)
                 const precos = [
                     parseFloat(carta.prices?.usd),
                     parseFloat(carta.prices?.usd_foil),
@@ -205,12 +228,17 @@
                 ].filter(v => !isNaN(v) && v > 0);
 
                 if (precos.length > 0) {
-                    menorPrecoUSD = Math.min(menorPrecoUSD, Math.min(...precos));
+                    menorPrecoUSD = Math.min(menorPrecoUSD, ...precos);
                 }
 
-                let img = carta.image_uris?.normal || carta.image_uris?.large;
-                if (carta.card_faces?.[0]?.image_uris) {
-                    img = carta.card_faces[0].image_uris.normal || carta.card_faces[0].image_uris.large;
+                // Escolhe a melhor imagem disponível
+                let img = null;
+                if (carta.image_uris) {
+                    img = carta.image_uris.normal || carta.image_uris.large || carta.image_uris.png;
+                } else if (carta.card_faces?.[0]?.image_uris) {
+                    img = carta.card_faces[0].image_uris.normal || 
+                          carta.card_faces[0].image_uris.large || 
+                          carta.card_faces[0].image_uris.png;
                 }
 
                 if (img && !imagemEscolhida) {
@@ -224,7 +252,9 @@
                 return;
             }
 
-            const precoBRL = (menorPrecoUSD * COTACAO_DOLAR).toFixed(2);
+            const precoBRL = menorPrecoUSD > 0 
+                ? (menorPrecoUSD * COTACAO_DOLAR).toFixed(2) 
+                : "—";
 
             let cartaExistente = listaCartas.find(c => c.nome === nomeCarta);
             if (cartaExistente) {
@@ -246,17 +276,20 @@
             renderizarLista();
         } catch (err) {
             console.error("Erro ao adicionar carta:", err);
-            alert("Erro ao buscar a carta. Abra o console (F12) para detalhes.");
+            alert("Erro ao buscar a carta. Veja o console (F12) para detalhes.");
         }
     }
 
     function toggleProcurando(id) {
-        listaCartas = listaCartas.map(c => c.id === id ? { ...c, procurando: !c.procurando } : c);
+        listaCartas = listaCartas.map(c => 
+            c.id === id ? { ...c, procurando: !c.procurando } : c
+        );
         salvar();
         renderizarLista();
     }
 
     function removerCarta(id) {
+        if (!confirm("Remover esta carta da lista?")) return;
         listaCartas = listaCartas.filter(c => c.id !== id);
         salvar();
         renderizarLista();
@@ -277,10 +310,12 @@
             div.classList.add("card");
             if (carta.procurando) div.classList.add("procurando");
 
+            const precoClasse = carta.preco === "—" ? "price none" : "price";
+
             div.innerHTML = `
-                <img src="${carta.imagem}" alt="${carta.nome}">
-                <p>${carta.nome}</p>
-                <div class="price">R$ ${carta.preco}</div>
+                <img src="${carta.imagem}" alt="${carta.nome}" loading="lazy">
+                <p><strong>${carta.nome}</strong></p>
+                <div class="${precoClasse}">R$ ${carta.preco}</div>
                 <p>Qtd: ${carta.quantidade}</p>
                 ${isAdmin ? `
                     <button class="btn-procurando" onclick="toggleProcurando(${carta.id})">
@@ -291,6 +326,10 @@
             `;
             lista.appendChild(div);
         });
+
+        if (cartasExibidas.length === 0) {
+            lista.innerHTML = '<p style="text-align:center; color:#777; grid-column:1/-1; padding:40px;">Nenhuma carta na lista ainda.</p>';
+        }
     }
 </script>
 </body>
