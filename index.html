@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Want Cards - MTG</title>
-    <!-- Força atualização rápida (anti-cache) -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -27,8 +26,8 @@
             background-size: 700px auto;
             background-attachment: fixed;
         }
-        h1, h2 { 
-            text-align: center; 
+        h1, h2 {
+            text-align: center;
             text-shadow: 0 0 10px #00ff88;
         }
         .search-container {
@@ -83,8 +82,8 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
         .card:hover { transform: translateY(-6px); }
-        .card.procurando { 
-            border: 2.5px solid #00ff88; 
+        .card.procurando {
+            border: 2.5px solid #00ff88;
             box-shadow: 0 0 16px #00ff8844;
         }
         .card img {
@@ -94,10 +93,10 @@
             border-radius: 10px;
             image-rendering: crisp-edges;
         }
-        .price { 
-            color: #00ff88; 
-            font-weight: bold; 
-            font-size: 1.1em; 
+        .price {
+            color: #00ff88;
+            font-weight: bold;
+            font-size: 1.1em;
             margin: 8px 0 4px;
         }
         .price.none { color: #888; }
@@ -114,11 +113,11 @@
         .btn-procurando:hover { background: #555; }
         .btn-remover { background: #aa0000; color: white; }
         .btn-remover:hover { background: #cc0000; }
-        .admin-info { 
-            text-align: center; 
-            font-size: 13px; 
-            color: #777; 
-            margin-top: 30px; 
+        .admin-info {
+            text-align: center;
+            font-size: 13px;
+            color: #777;
+            margin-top: 30px;
         }
     </style>
 </head>
@@ -138,7 +137,7 @@
 
 <script>
     const ADMIN_PASSWORD = "8090200";
-    const COTACAO_DOLAR = 5.00; // Atualize este valor periodicamente
+    const COTACAO_DOLAR = 5.00;
     let isAdmin = sessionStorage.getItem("adminMTG") === "true";
     let listaCartas = JSON.parse(localStorage.getItem("cartasMTG")) || [];
 
@@ -167,25 +166,20 @@
             document.getElementById("sugestoes").innerHTML = "";
             return;
         }
-
         try {
             const resp = await fetch(`https://api.scryfall.com/cards/autocomplete?q=${encodeURIComponent(nome)}`);
             if (!resp.ok) throw new Error("Erro na autocomplete");
             const data = await resp.json();
-
             const sugestoesDiv = document.getElementById("sugestoes");
             sugestoesDiv.innerHTML = "";
-
             for (let nomeCarta of data.data.slice(0, 6)) {
                 try {
                     const cartaResp = await fetch(`https://api.scryfall.com/cards/named?exact=${encodeURIComponent(nomeCarta)}`);
                     const carta = await cartaResp.json();
-
                     let img = carta.image_uris?.small || 'https://via.placeholder.com/48?text=?';
                     if (carta.card_faces?.[0]?.image_uris?.small) {
                         img = carta.card_faces[0].image_uris.small;
                     }
-
                     const div = document.createElement("div");
                     div.classList.add("suggestion-item");
                     div.innerHTML = `<img src="${img}"><span>${nomeCarta}</span>`;
@@ -210,52 +204,41 @@
             const resp = await fetch(`https://api.scryfall.com/cards/search?q=${encodeURIComponent(query)}&order=usd`);
             if (!resp.ok) throw new Error(`Erro HTTP ${resp.status}`);
             const data = await resp.json();
-
             if (!data.data?.length) {
                 alert(`Carta "${nomeCarta}" não encontrada na Scryfall.`);
                 return;
             }
-
             let menorPrecoUSD = Infinity;
             let imagemEscolhida = null;
-
             for (const carta of data.data) {
-                // Preços corretos da API atual (strings ou null)
                 const precos = [
                     parseFloat(carta.prices?.usd),
                     parseFloat(carta.prices?.usd_foil),
                     parseFloat(carta.prices?.usd_etched)
                 ].filter(v => !isNaN(v) && v > 0);
-
                 if (precos.length > 0) {
                     menorPrecoUSD = Math.min(menorPrecoUSD, ...precos);
                 }
-
-                // Escolhe a melhor imagem disponível
                 let img = null;
                 if (carta.image_uris) {
                     img = carta.image_uris.normal || carta.image_uris.large || carta.image_uris.png;
                 } else if (carta.card_faces?.[0]?.image_uris) {
-                    img = carta.card_faces[0].image_uris.normal || 
-                          carta.card_faces[0].image_uris.large || 
+                    img = carta.card_faces[0].image_uris.normal ||
+                          carta.card_faces[0].image_uris.large ||
                           carta.card_faces[0].image_uris.png;
                 }
-
                 if (img && !imagemEscolhida) {
                     imagemEscolhida = img;
                 }
             }
-
             if (menorPrecoUSD === Infinity) menorPrecoUSD = 0;
             if (!imagemEscolhida) {
                 alert(`Nenhuma imagem disponível para "${nomeCarta}".`);
                 return;
             }
-
-            const precoBRL = menorPrecoUSD > 0 
-                ? (menorPrecoUSD * COTACAO_DOLAR).toFixed(2) 
+            const precoBRL = menorPrecoUSD > 0
+                ? (menorPrecoUSD * COTACAO_DOLAR).toFixed(2)
                 : "—";
-
             let cartaExistente = listaCartas.find(c => c.nome === nomeCarta);
             if (cartaExistente) {
                 cartaExistente.quantidade += 1;
@@ -271,7 +254,6 @@
                     procurando: true
                 });
             }
-
             salvar();
             renderizarLista();
         } catch (err) {
@@ -281,7 +263,7 @@
     }
 
     function toggleProcurando(id) {
-        listaCartas = listaCartas.map(c => 
+        listaCartas = listaCartas.map(c =>
             c.id === id ? { ...c, procurando: !c.procurando } : c
         );
         salvar();
@@ -302,16 +284,12 @@
     function renderizarLista() {
         const lista = document.getElementById("lista");
         lista.innerHTML = "";
-
         const cartasExibidas = isAdmin ? listaCartas : listaCartas.filter(c => c.procurando);
-
         cartasExibidas.forEach(carta => {
             const div = document.createElement("div");
             div.classList.add("card");
             if (carta.procurando) div.classList.add("procurando");
-
             const precoClasse = carta.preco === "—" ? "price none" : "price";
-
             div.innerHTML = `
                 <img src="${carta.imagem}" alt="${carta.nome}" loading="lazy">
                 <p><strong>${carta.nome}</strong></p>
@@ -326,7 +304,6 @@
             `;
             lista.appendChild(div);
         });
-
         if (cartasExibidas.length === 0) {
             lista.innerHTML = '<p style="text-align:center; color:#777; grid-column:1/-1; padding:40px;">Nenhuma carta na lista ainda.</p>';
         }
