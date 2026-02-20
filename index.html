@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Want Cards - MTG</title>
+    
+    <!-- Anti-cache para forçar atualização no GitHub Pages e navegador -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <style>
         body {
             margin: 0;
@@ -19,9 +25,8 @@
             min-height: 100vh;
             padding: 20px;
             box-sizing: border-box;
-            background: url("https://cards.scryfall.io/back.png") no-repeat center center fixed;
-            background-size: 700px auto; /* Ajuste se quiser maior: 800px ou 60vw */
-            background-position: center center;
+            background: url("https://cards.scryfall.io/back.png") no-repeat center center;
+            background-size: 400px auto;
         }
         h1, h2 { text-align: center; }
         .search-container {
@@ -41,7 +46,7 @@
             width: 100%;
             background: #1e1e1e;
             border-radius: 8px;
-            max-height: 280px;
+            max-height: 250px;
             overflow-y: auto;
             margin-top: 5px;
             z-index: 10;
@@ -94,76 +99,66 @@
     </style>
 </head>
 <body>
-    <div class="main">
-        <h1>🧙 Want Cards - MTG</h1>
-        <div id="searchArea" class="search-container">
-            <input type="text" id="busca" placeholder="Digite o nome da carta (PT ou EN)..." oninput="buscarSugestoes()">
-            <div id="sugestoes" class="suggestions"></div>
-        </div>
-        <h2>Cartas Procuradas</h2>
-        <div id="lista" class="grid"></div>
-        <div class="admin-info">
-            Pressione Ctrl + Shift + A para modo administrador
-        </div>
+<div class="main">
+    <h1>🧙 Want Cards - MTG</h1>
+    <div id="searchArea" class="search-container">
+        <input type="text" id="busca" placeholder="Digite o nome da carta..." oninput="buscarSugestoes()">
+        <div id="sugestoes" class="suggestions"></div>
     </div>
+    <h2>Cartas Procuradas</h2>
+    <div id="lista" class="grid"></div>
+    <div class="admin-info">
+        Pressione Ctrl + Shift + A para modo administrador
+    </div>
+</div>
 
-    <script>
-        const ADMIN_PASSWORD = "8090200";
-        let isAdmin = sessionStorage.getItem("adminMTG") === "true";
-        let listaCartas = JSON.parse(localStorage.getItem("cartasMTG")) || [];
+<script>
+    const ADMIN_PASSWORD = "mtg123";
+    const COTACAO_DOLAR = 5.00; // Ajuste se o dólar mudar
 
-        if (isAdmin) {
-            document.getElementById("searchArea").style.display = "block";
+    let isAdmin = sessionStorage.getItem("adminMTG") === "true";
+    let listaCartas = JSON.parse(localStorage.getItem("cartasMTG")) || [];
+
+    if (isAdmin) {
+        document.getElementById("searchArea").style.display = "block";
+    }
+
+    document.addEventListener("keydown", function(e) {
+        if (e.ctrlKey && e.shiftKey && e.key === "A") {
+            const senha = prompt("Digite a senha de administrador:");
+            if (senha === ADMIN_PASSWORD) {
+                sessionStorage.setItem("adminMTG", "true");
+                location.reload();
+            } else {
+                alert("Senha incorreta!");
+            }
+        }
+    });
+
+    window.onload = () => renderizarLista();
+
+    // Sugestões com miniaturas
+    async function buscarSugestoes() {
+        if (!isAdmin) return;
+
+        const nome = document.getElementById("busca").value.trim();
+        if (nome.length < 2) {
+            document.getElementById("sugestoes").innerHTML = "";
+            return;
         }
 
-        document.addEventListener("keydown", function(e) {
-            if (e.ctrlKey && e.shiftKey && e.key === "A") {
-                const senha = prompt("Digite a senha de administrador:");
-                if (senha === ADMIN_PASSWORD) {
-                    sessionStorage.setItem("adminMTG", "true");
-                    location.reload();
-                } else {
-                    alert("Senha incorreta!");
-                }
-            }
-        });
+        try {
+            const resp = await fetch(`https://api.scryfall.com/cards/autocomplete?q=${encodeURIComponent(nome)}`);
+            const data = await resp.json();
 
-        window.onload = () => renderizarLista();
+            const sugestoesDiv = document.getElementById("sugestoes");
+            sugestoesDiv.innerHTML = "";
 
-        // BUSCA COM SUGESTÕES - SUPORTE MELHORADO PARA PT/EN
-        async function buscarSugestoes() {
-            if (!isAdmin) return;
-            const termo = document.getElementById("busca").value.trim();
-            if (termo.length < 3) {
-                document.getElementById("sugestoes").innerHTML = "";
-                return;
-            }
+            for (let nomeCarta of data.data.slice(0, 6)) {
+                try {
+                    const cartaResp = await fetch(`https://api.scryfall.com/cards/named?exact=${encodeURIComponent(nomeCarta)}`);
+                    const carta = await cartaResp.json();
 
-            try {
-                // Query otimizada: busca fuzzy em printed_name (PT) ou name (EN)
-                const query = `(printed_name:${encodeURIComponent(termo)} lang:pt) OR name:${encodeURIComponent(termo)} include:multilingual`;
-                const url = `https://api.scryfall.com/cards/search?q=${query}&order=usd&unique=prints&include_multilingual=true`;
-                
-                const resp = await fetch(url);
-                if (!resp.ok) {
-                    if (resp.status === 404) {
-                        document.getElementById("sugestoes").innerHTML = '<div style="padding:10px;color:#888;">Nenhuma carta encontrada</div>';
-                        return;
-                    }
-                    throw new Error("Erro na API Scryfall: " + resp.status);
-                }
-                
-                const data = await resp.json();
-                const sugestoesDiv = document.getElementById("sugestoes");
-                sugestoesDiv.innerHTML = "";
-
-                const cartas = data.data?.slice(0, 8) || [];
-
-                for (const carta of cartas) {
-                    // Nome exibido: prioriza PT
-                    let nomeExibido = (carta.printed_name && carta.lang === "pt") ? carta.printed_name : carta.name;
-                    
-                    // Imagem small (face frontal)
                     let img = carta.image_uris?.small;
                     if (carta.card_faces?.[0]?.image_uris?.small) {
                         img = carta.card_faces[0].image_uris.small;
@@ -171,138 +166,130 @@
 
                     const div = document.createElement("div");
                     div.classList.add("suggestion-item");
-                    div.innerHTML = `
-                        <img src="${img || 'https://cards.scryfall.io/small/front/0/0/00000000-0000-0000-0000-000000000000.jpg'}">
-                        <span>${nomeExibido}</span>
-                        <small style="color:#888;">(${carta.lang.toUpperCase()})</small>
-                    `;
+                    div.innerHTML = `<img src="${img || 'https://via.placeholder.com/40?text=?'}"><span>${nomeCarta}</span>`;
                     div.addEventListener("click", () => {
-                        adicionarCarta(carta);
+                        adicionarCartaPorNome(nomeCarta);
                         sugestoesDiv.innerHTML = "";
                         document.getElementById("busca").value = "";
                     });
                     sugestoesDiv.appendChild(div);
+                } catch (err) {
+                    console.warn(`Miniatura falhou para ${nomeCarta}`, err);
                 }
-
-                if (cartas.length === 0) {
-                    sugestoesDiv.innerHTML = '<div style="padding:10px;color:#888;">Nenhuma carta encontrada. Tente em inglês.</div>';
-                }
-            } catch (err) {
-                console.error("Erro na busca:", err);
-                document.getElementById("sugestoes").innerHTML = '<div style="padding:10px;color:#f66;">Erro ao buscar. Tente novamente.</div>';
             }
+        } catch (err) {
+            console.error("Erro nas sugestões:", err);
         }
+    }
 
-        // ADICIONAR CARTA - PREÇOS ATUALIZADOS VIA SCRYFALL + COTAÇÃO DÓLAR REAL-TIME
-        async function adicionarCarta(cartaApi) {
-            try {
-                // Nome final: prioriza PT
-                let nomeFinal = (cartaApi.printed_name && cartaApi.lang === "pt") ? cartaApi.printed_name : cartaApi.name;
+    // Adicionar carta corrigida
+    async function adicionarCartaPorNome(nomeCarta) {
+        try {
+            const query = `!"${nomeCarta}"`;
+            const resp = await fetch(`https://api.scryfall.com/cards/search?q=${encodeURIComponent(query)}&order=usd`);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
-                // Pegar menor preço USD da Scryfall
-                let menorPrecoUSD = Infinity;
+            const data = await resp.json();
+            if (!data.data?.length) {
+                alert(`Carta "${nomeCarta}" não encontrada.`);
+                return;
+            }
+
+            let menorPrecoUSD = Infinity;
+            let imagemEscolhida = null;
+
+            for (const carta of data.data) {
                 const precos = [
-                    parseFloat(cartaApi.prices?.usd),
-                    parseFloat(cartaApi.prices?.usd_foil),
-                    parseFloat(cartaApi.prices?.usd_etched)
+                    parseFloat(carta.prices?.usd),
+                    parseFloat(carta.prices?.usd_foil),
+                    parseFloat(carta.prices?.usd_etched)
                 ].filter(v => !isNaN(v) && v > 0);
-                if (precos.length > 0) {
-                    menorPrecoUSD = Math.min(...precos);
+
+                if (precos.length) {
+                    menorPrecoUSD = Math.min(menorPrecoUSD, Math.min(...precos));
                 }
 
-                // Pegar cotação do dólar real-time (AwesomeAPI)
-                let cotacaoDolar = 5.50; // Fallback se API falhar
-                try {
-                    const cotResp = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL');
-                    if (cotResp.ok) {
-                        const cotData = await cotResp.json();
-                        cotacaoDolar = parseFloat(cotData.USD.bid); // Preço de venda
-                    }
-                } catch (cotErr) {
-                    console.warn("Falha ao buscar cotação do dólar:", cotErr);
+                let img = carta.image_uris?.normal || carta.image_uris?.large;
+                if (carta.card_faces?.[0]?.image_uris) {
+                    img = carta.card_faces[0].image_uris.normal || carta.card_faces[0].image_uris.large;
                 }
-
-                const precoBRL = menorPrecoUSD === Infinity ? "—" : (menorPrecoUSD * cotacaoDolar).toFixed(2);
-
-                // Imagem (face frontal, normal ou large)
-                let imagem = cartaApi.image_uris?.normal || cartaApi.image_uris?.large;
-                if (cartaApi.card_faces?.[0]?.image_uris) {
-                    imagem = cartaApi.card_faces[0].image_uris.normal || cartaApi.card_faces[0].image_uris.large;
-                }
-
-                if (!imagem) {
-                    alert("Não foi possível encontrar imagem para esta carta.");
-                    return;
-                }
-
-                // Adicionar ou incrementar/atualizar
-                let existente = listaCartas.find(c => c.nome === nomeFinal);
-                if (existente) {
-                    existente.quantidade += 1;
-                    existente.preco = precoBRL;
-                    existente.imagem = imagem;
-                } else {
-                    listaCartas.push({
-                        id: Date.now(),
-                        nome: nomeFinal,
-                        imagem: imagem,
-                        preco: precoBRL,
-                        quantidade: 1,
-                        procurando: true
-                    });
-                }
-
-                salvar();
-                renderizarLista();
-            } catch (err) {
-                console.error("Erro ao adicionar carta:", err);
-                alert("Erro ao adicionar carta. Verifique o console (F12).");
+                if (img && !imagemEscolhida) imagemEscolhida = img;
             }
-        }
 
-        // FUNÇÕES AUXILIARES
-        function toggleProcurando(id) {
-            listaCartas = listaCartas.map(c => c.id === id ? { ...c, procurando: !c.procurando } : c);
+            if (menorPrecoUSD === Infinity) menorPrecoUSD = 0;
+            if (!imagemEscolhida) {
+                alert(`Sem imagem disponível para "${nomeCarta}".`);
+                return;
+            }
+
+            const precoBRL = (menorPrecoUSD * COTACAO_DOLAR).toFixed(2);
+
+            let cartaExistente = listaCartas.find(c => c.nome === nomeCarta);
+            if (cartaExistente) {
+                cartaExistente.quantidade += 1;
+                cartaExistente.preco = precoBRL;
+                cartaExistente.imagem = imagemEscolhida;
+            } else {
+                listaCartas.push({
+                    id: Date.now(),
+                    nome: nomeCarta,
+                    imagem: imagemEscolhida,
+                    preco: precoBRL,
+                    quantidade: 1,
+                    procurando: true
+                });
+            }
+
             salvar();
             renderizarLista();
+        } catch (err) {
+            console.error("Erro ao adicionar:", err);
+            alert("Erro na busca. Veja console (F12).");
         }
+    }
 
-        function removerCarta(id) {
-            listaCartas = listaCartas.filter(c => c.id !== id);
-            salvar();
-            renderizarLista();
-        }
+    function toggleProcurando(id) {
+        listaCartas = listaCartas.map(c => c.id === id ? {...c, procurando: !c.procurando} : c);
+        salvar();
+        renderizarLista();
+    }
 
-        function salvar() {
-            localStorage.setItem("cartasMTG", JSON.stringify(listaCartas));
-        }
+    function removerCarta(id) {
+        listaCartas = listaCartas.filter(c => c.id !== id);
+        salvar();
+        renderizarLista();
+    }
 
-        function renderizarLista() {
-            const lista = document.getElementById("lista");
-            lista.innerHTML = "";
-            const cartasExibidas = isAdmin ? listaCartas : listaCartas.filter(c => c.procurando);
+    function salvar() {
+        localStorage.setItem("cartasMTG", JSON.stringify(listaCartas));
+    }
 
-            cartasExibidas.forEach(carta => {
-                const div = document.createElement("div");
-                div.classList.add("card");
-                if (carta.procurando) div.classList.add("procurando");
-                div.innerHTML = `
-                    <img src="${carta.imagem}" alt="${carta.nome}">
-                    <p>${carta.nome}</p>
-                    <div class="price">R$ ${carta.preco}</div>
-                    <p>Qtd: ${carta.quantidade}</p>
-                    ${isAdmin ? `
-                        <button class="btn-procurando" onclick="toggleProcurando(${carta.id})">
-                            ${carta.procurando ? "✔ Procurando" : "Marcar como Procurando"}
-                        </button>
-                        <button class="btn-remover" onclick="removerCarta(${carta.id})">
-                            Remover
-                        </button>
-                    ` : ""}
-                `;
-                lista.appendChild(div);
-            });
-        }
-    </script>
+    function renderizarLista() {
+        const lista = document.getElementById("lista");
+        lista.innerHTML = "";
+
+        const cartasExibidas = isAdmin ? listaCartas : listaCartas.filter(c => c.procurando);
+
+        cartasExibidas.forEach(carta => {
+            const div = document.createElement("div");
+            div.classList.add("card");
+            if (carta.procurando) div.classList.add("procurando");
+
+            div.innerHTML = `
+                <img src="${carta.imagem}" alt="${carta.nome}">
+                <p>${carta.nome}</p>
+                <div class="price">R$ ${carta.preco}</div>
+                <p>Qtd: ${carta.quantidade}</p>
+                ${isAdmin ? `
+                    <button class="btn-procurando" onclick="toggleProcurando(${carta.id})">
+                        ${carta.procurando ? "✔ Procurando" : "Marcar Procurando"}
+                    </button>
+                    <button class="btn-remover" onclick="removerCarta(${carta.id})">Remover</button>
+                ` : ""}
+            `;
+            lista.appendChild(div);
+        });
+    }
+</script>
 </body>
 </html>
