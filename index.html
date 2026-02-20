@@ -7,6 +7,8 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+    <!-- CSP relaxado para permitir imagens e fetch da Scryfall no GitHub Pages -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; img-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https:;">
     <style>
         body {
             margin: 0;
@@ -136,13 +138,31 @@
 </div>
 
 <script>
-    const ADMIN_PASSWORD = "8090200"; // ou "mtg123" — escolha uma
+    console.log("Script iniciado - versão com debug 2025");
+
+    const ADMIN_PASSWORD = "8090200";
     const COTACAO_DOLAR = 5.00;
     let isAdmin = sessionStorage.getItem("adminMTG") === "true";
-    let listaCartas = JSON.parse(localStorage.getItem("cartasMTG")) || [];
+    let listaCartas = [];
+
+    // Carrega lista com tratamento de erro
+    try {
+        const saved = localStorage.getItem("cartasMTG");
+        console.log("Conteúdo bruto do localStorage:", saved);
+        if (saved) {
+            listaCartas = JSON.parse(saved);
+            console.log("Cartas carregadas com sucesso:", listaCartas.length, "itens");
+        } else {
+            console.log("localStorage vazio - nenhuma carta salva");
+        }
+    } catch (e) {
+        console.error("Erro ao carregar localStorage:", e.message);
+        listaCartas = [];
+    }
 
     if (isAdmin) {
         document.getElementById("searchArea").style.display = "block";
+        console.log("Modo admin ativado");
     }
 
     document.addEventListener("keydown", (e) => {
@@ -157,7 +177,10 @@
         }
     });
 
-    window.onload = () => renderizarLista();
+    window.onload = () => {
+        console.log("Página carregada - renderizando lista");
+        renderizarLista();
+    };
 
     async function buscarSugestoes() {
         if (!isAdmin) return;
@@ -167,8 +190,9 @@
             return;
         }
         try {
+            console.log("Buscando sugestões para:", nome);
             const resp = await fetch(`https://api.scryfall.com/cards/autocomplete?q=${encodeURIComponent(nome)}`);
-            if (!resp.ok) throw new Error("Erro na autocomplete");
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();
             const sugestoesDiv = document.getElementById("sugestoes");
             sugestoesDiv.innerHTML = "";
@@ -190,22 +214,23 @@
                     });
                     sugestoesDiv.appendChild(div);
                 } catch (err) {
-                    console.warn(`Falha ao carregar miniatura de ${nomeCarta}`, err);
+                    console.warn(`Falha miniatura ${nomeCarta}:`, err);
                 }
             }
         } catch (err) {
-            console.error("Erro na busca de sugestões:", err);
+            console.error("Erro busca sugestões:", err);
         }
     }
 
     async function adicionarCartaPorNome(nomeCarta) {
         try {
+            console.log("Adicionando carta:", nomeCarta);
             const query = `!"${nomeCarta}"`;
             const resp = await fetch(`https://api.scryfall.com/cards/search?q=${encodeURIComponent(query)}&order=usd`);
-            if (!resp.ok) throw new Error(`Erro HTTP ${resp.status}`);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();
             if (!data.data?.length) {
-                alert(`Carta "${nomeCarta}" não encontrada na Scryfall.`);
+                alert(`Carta "${nomeCarta}" não encontrada.`);
                 return;
             }
             let menorPrecoUSD = Infinity;
@@ -227,18 +252,14 @@
                           carta.card_faces[0].image_uris.large ||
                           carta.card_faces[0].image_uris.png;
                 }
-                if (img && !imagemEscolhida) {
-                    imagemEscolhida = img;
-                }
+                if (img && !imagemEscolhida) imagemEscolhida = img;
             }
             if (menorPrecoUSD === Infinity) menorPrecoUSD = 0;
             if (!imagemEscolhida) {
-                alert(`Nenhuma imagem disponível para "${nomeCarta}".`);
+                alert(`Nenhuma imagem para "${nomeCarta}".`);
                 return;
             }
-            const precoBRL = menorPrecoUSD > 0
-                ? (menorPrecoUSD * COTACAO_DOLAR).toFixed(2)
-                : "—";
+            const precoBRL = menorPrecoUSD > 0 ? (menorPrecoUSD * COTACAO_DOLAR).toFixed(2) : "—";
             let cartaExistente = listaCartas.find(c => c.nome === nomeCarta);
             if (cartaExistente) {
                 cartaExistente.quantidade += 1;
@@ -258,33 +279,42 @@
             renderizarLista();
         } catch (err) {
             console.error("Erro ao adicionar carta:", err);
-            alert("Erro ao buscar a carta. Veja o console (F12) para detalhes.");
+            alert("Erro ao buscar carta. Veja console (F12).");
         }
     }
 
     function toggleProcurando(id) {
-        listaCartas = listaCartas.map(c =>
-            c.id === id ? { ...c, procurando: !c.procurando } : c
-        );
+        listaCartas = listaCartas.map(c => c.id === id ? { ...c, procurando: !c.procurando } : c);
         salvar();
         renderizarLista();
     }
 
     function removerCarta(id) {
-        if (!confirm("Remover esta carta da lista?")) return;
+        if (!confirm("Remover esta carta?")) return;
         listaCartas = listaCartas.filter(c => c.id !== id);
         salvar();
         renderizarLista();
     }
 
     function salvar() {
-        localStorage.setItem("cartasMTG", JSON.stringify(listaCartas));
+        try {
+            localStorage.setItem("cartasMTG", JSON.stringify(listaCartas));
+            console.log("Lista salva no localStorage:", listaCartas.length, "cartas");
+        } catch (e) {
+            console.error("Erro ao salvar localStorage:", e);
+        }
     }
 
     function renderizarLista() {
+        console.log("Renderizando lista - total cartas:", listaCartas.length);
         const lista = document.getElementById("lista");
         lista.innerHTML = "";
         const cartasExibidas = isAdmin ? listaCartas : listaCartas.filter(c => c.procurando);
+        if (cartasExibidas.length === 0) {
+            lista.innerHTML = '<p style="text-align:center; color:#777; grid-column:1/-1; padding:40px;">Nenhuma carta na lista ainda.</p>';
+            console.log("Lista vazia exibida");
+            return;
+        }
         cartasExibidas.forEach(carta => {
             const div = document.createElement("div");
             div.classList.add("card");
@@ -304,9 +334,6 @@
             `;
             lista.appendChild(div);
         });
-        if (cartasExibidas.length === 0) {
-            lista.innerHTML = '<p style="text-align:center; color:#777; grid-column:1/-1; padding:40px;">Nenhuma carta na lista ainda.</p>';
-        }
     }
 </script>
 </body>
