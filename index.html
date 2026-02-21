@@ -1,340 +1,439 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Want Cards - MTG</title>
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <!-- CSP relaxado para permitir imagens e fetch da Scryfall no GitHub Pages -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; img-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https:;">
-    <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #0d0d0d;
-            color: white;
-            display: flex;
-            justify-content: center;
-        }
-        .main {
-            width: 100%;
-            max-width: 1200px;
-            min-height: 100vh;
-            padding: 20px;
-            box-sizing: border-box;
-            background: url("https://cards.scryfall.io/back.png") no-repeat center center;
-            background-size: 700px auto;
-            background-attachment: fixed;
-        }
-        h1, h2 {
-            text-align: center;
-            text-shadow: 0 0 10px #00ff88;
-        }
-        .search-container {
-            position: relative;
-            max-width: 420px;
-            margin: 30px auto;
-            display: none;
-        }
-        input {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: none;
-            font-size: 16px;
-        }
-        .suggestions {
-            position: absolute;
-            width: 100%;
-            background: #1e1e1e;
-            border-radius: 8px;
-            max-height: 280px;
-            overflow-y: auto;
-            margin-top: 6px;
-            z-index: 10;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.7);
-        }
-        .suggestion-item {
-            display: flex;
-            align-items: center;
-            padding: 10px;
-            cursor: pointer;
-            gap: 12px;
-        }
-        .suggestion-item:hover { background: #2a2a2a; }
-        .suggestion-item img {
-            width: 48px;
-            height: auto;
-            border-radius: 6px;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 24px;
-            margin-top: 30px;
-        }
-        .card {
-            background: #1a1a1a;
-            padding: 12px;
-            border-radius: 14px;
-            text-align: center;
-            transition: all 0.18s;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-        }
-        .card:hover { transform: translateY(-6px); }
-        .card.procurando {
-            border: 2.5px solid #00ff88;
-            box-shadow: 0 0 16px #00ff8844;
-        }
-        .card img {
-            width: 100%;
-            max-width: 200px;
-            height: auto;
-            border-radius: 10px;
-            image-rendering: crisp-edges;
-        }
-        .price {
-            color: #00ff88;
-            font-weight: bold;
-            font-size: 1.1em;
-            margin: 8px 0 4px;
-        }
-        .price.none { color: #888; }
-        button {
-            margin: 6px 4px;
-            padding: 8px 12px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            transition: 0.15s;
-        }
-        .btn-procurando { background: #444; color: white; }
-        .btn-procurando:hover { background: #555; }
-        .btn-remover { background: #aa0000; color: white; }
-        .btn-remover:hover { background: #cc0000; }
-        .admin-info {
-            text-align: center;
-            font-size: 13px;
-            color: #777;
-            margin-top: 30px;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Want Cards - MTG</title>
+<style>
+body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #0d0d0d;
+    color: white;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+}
+body::before {
+    content: "";
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 620px;
+    height: 860px;
+    background: url("https://cards.scryfall.io/back.png") no-repeat center center;
+    background-size: contain;
+    transform: translate(-50%, -50%);
+    opacity: 0.18; /* Mantido mais forte como pedido */
+    z-index: -1;
+    pointer-events: none;
+}
+.main {
+    width: 100%;
+    max-width: 1280px;
+    padding: 20px 15px;
+}
+h1 {
+    text-align: center;
+    font-size: 3.2rem;
+    margin: 0.5em 0 0.4em;
+    color: white;
+    text-shadow: 0 0 6px #00bfff, 0 0 12px #00bfff, 0 0 24px #00bfff, 0 0 48px #00bfff;
+}
+.search-container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin: 1.5em 0 2em;
+    z-index: 20;
+}
+#busca {
+    padding: 14px 18px;
+    width: 400px;
+    max-width: 90%;
+    font-size: 1.1rem;
+    border-radius: 10px;
+    border: 2px solid #00bfff;
+    background: #111;
+    color: white;
+    outline: none;
+}
+#busca:focus {
+    box-shadow: 0 0 14px #00bfff;
+}
+#addBtn {
+    padding: 14px 24px;
+    font-size: 1.1rem;
+    background: #00bfff;
+    color: black;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    display: none;
+}
+#addBtn:hover {
+    background: #00d4ff;
+}
+.suggestions {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 440px;
+    max-width: 95%;
+    max-height: 340px;
+    overflow-y: auto;
+    background: #111;
+    border: 2px solid #00bfff;
+    border-radius: 10px;
+    z-index: 100;
+    box-shadow: 0 0 24px rgba(0,191,255,0.6);
+    display: none;
+}
+.suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid #222;
+}
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+.suggestion-item:hover {
+    background: #1a1a1a;
+}
+.suggestion-item img {
+    width: 64px;
+    border-radius: 8px;
+}
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 24px;
+    margin-top: 1.5em;
+}
+.card {
+    background: #111;
+    padding: 16px;
+    border-radius: 14px;
+    text-align: center;
+    border: 2px solid #00bfff;
+    box-shadow: 0 0 14px #00bfff;
+    transition: all 0.15s ease;
+}
+.card.procurando {
+    border-color: #00ff88;
+    box-shadow: 0 0 14px #00ff88;
+}
+.card img {
+    width: 100%;
+    border-radius: 10px;
+    margin-bottom: 0.8em;
+}
+.price {
+    color: #00ff88;
+    font-weight: bold;
+    font-size: 1.2rem;
+    margin: 0.6em 0;
+}
+h3 {
+    margin: 0.4em 0 0.3em;
+    font-size: 1.15rem;
+}
+.admin-controls {
+    margin-top: 1em;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.admin-controls button {
+    padding: 9px 18px;
+    font-size: 0.95rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    min-width: 110px;
+    transition: all 0.15s;
+}
+.btn-procurando {
+    background: #00ff88;
+    color: #000;
+}
+.btn-procurando:hover {
+    background: #33ffaa;
+}
+.btn-remover {
+    background: #ff4444;
+    color: white;
+}
+.btn-remover:hover {
+    background: #ff6666;
+}
+</style>
 </head>
 <body>
 <div class="main">
-    <h1>🧙 Want Cards - MTG</h1>
-    <div id="searchArea" class="search-container">
-        <input type="text" id="busca" placeholder="Digite o nome da carta..." oninput="buscarSugestoes()">
+    <h1>🧙‍♂️ Want Cards - MTG 🔥 </h1>
+
+    <div class="search-container" id="searchArea" style="display:none;">
+        <input type="text" id="busca" placeholder="Nome da carta (PT ou EN)" autocomplete="off">
+        <button id="addBtn">Adicionar</button>
         <div id="sugestoes" class="suggestions"></div>
     </div>
-    <h2>Cartas Procuradas</h2>
+
+    <h2 style="text-align:center; margin: 1.8em 0 1em;">Cartas Procuradas</h2>
     <div id="lista" class="grid"></div>
-    <div class="admin-info">
-        Pressione Ctrl + Shift + A para modo administrador
-    </div>
+
+    <p style="text-align:center; font-size:0.9rem; color:#777; margin-top:3em;">
+        Ctrl + Shift + A para modo admin
+    </p>
 </div>
 
-<script>
-    console.log("Script iniciado - versão com debug 2025");
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    const ADMIN_PASSWORD = "8090200";
-    const COTACAO_DOLAR = 5.00;
-    let isAdmin = sessionStorage.getItem("adminMTG") === "true";
-    let listaCartas = [];
+const firebaseConfig = {
+  apiKey: "AIzaSyDrCpztNx9akUqqjM72jUJ9rccJioHq4dw",
+  authDomain: "want-cards-mtg.firebaseapp.com",
+  projectId: "want-cards-mtg",
+  storageBucket: "want-cards-mtg.firebasestorage.app",
+  messagingSenderId: "215262014165",
+  appId: "1:215262014165:web:2f13d4a9e5260811c1505c"
+};
 
-    // Carrega lista com tratamento de erro
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const ADMIN_PASSWORD = "8090200";
+let isAdmin = sessionStorage.getItem("admin") === "true";
+let listaCartas = [];
+let debounceTimer;
+
+if (isAdmin) {
+    document.getElementById("searchArea").style.display = "flex";
+}
+
+document.addEventListener("keydown", (e) => {
+    if (e.ctrlKey && e.shiftKey && e.key.toUpperCase() === "A") {
+        const senha = prompt("Senha admin:");
+        if (senha === ADMIN_PASSWORD) {
+            sessionStorage.setItem("admin", "true");
+            location.reload();
+        } else alert("Senha incorreta");
+    }
+});
+
+const input = document.getElementById("busca");
+const addBtn = document.getElementById("addBtn");
+const sugestoesDiv = document.getElementById("sugestoes");
+
+input.addEventListener("input", () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(mostrarSugestoes, 300);
+    addBtn.style.display = input.value.trim() ? "block" : "none";
+});
+
+addBtn.addEventListener("click", adicionarPorNomeOuPrimeiraSugestao);
+
+input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+        e.preventDefault();
+        adicionarPorNomeOuPrimeiraSugestao();
+    }
+});
+
+document.addEventListener("click", (e) => {
+    if (!input.contains(e.target) && !sugestoesDiv.contains(e.target) && !addBtn.contains(e.target)) {
+        sugestoesDiv.style.display = "none";
+    }
+});
+
+async function mostrarSugestoes() {
+    const termo = input.value.trim();
+    if (termo.length < 2) {
+        sugestoesDiv.style.display = "none";
+        return;
+    }
+
     try {
-        const saved = localStorage.getItem("cartasMTG");
-        console.log("Conteúdo bruto do localStorage:", saved);
-        if (saved) {
-            listaCartas = JSON.parse(saved);
-            console.log("Cartas carregadas com sucesso:", listaCartas.length, "itens");
-        } else {
-            console.log("localStorage vazio - nenhuma carta salva");
-        }
-    } catch (e) {
-        console.error("Erro ao carregar localStorage:", e.message);
-        listaCartas = [];
-    }
+        const res = await fetch(`https://api.scryfall.com/cards/autocomplete?q=${encodeURIComponent(termo)}`);
+        const data = await res.json();
 
-    if (isAdmin) {
-        document.getElementById("searchArea").style.display = "block";
-        console.log("Modo admin ativado");
-    }
-
-    document.addEventListener("keydown", (e) => {
-        if (e.ctrlKey && e.shiftKey && e.key.toUpperCase() === "A") {
-            const senha = prompt("Digite a senha de administrador:");
-            if (senha === ADMIN_PASSWORD) {
-                sessionStorage.setItem("adminMTG", "true");
-                location.reload();
-            } else {
-                alert("Senha incorreta!");
-            }
+        sugestoesDiv.innerHTML = "";
+        if (!data.data?.length) {
+            sugestoesDiv.style.display = "none";
+            return;
         }
+
+        const promessas = data.data.slice(0, 6).map(nome => 
+            fetch(`https://api.scryfall.com/cards/named?exact=${encodeURIComponent(nome)}`).then(r => r.json())
+        );
+
+        const cartas = (await Promise.all(promessas)).filter(c => c.object !== "error");
+
+        cartas.forEach(carta => {
+            const precoBRL = (parseFloat(carta.prices?.usd || 0) * 5).toFixed(2);
+            const nomeExibido = carta.printed_name || carta.name;
+            const imgSug = carta.image_uris?.small || (carta.card_faces?.[0]?.image_uris?.small) || '';
+            const item = document.createElement("div");
+            item.className = "suggestion-item";
+            item.innerHTML = `
+                <img src="${imgSug}" alt="">
+                <span>${nomeExibido} — R$ ${precoBRL}</span>
+            `;
+            item.onclick = () => {
+                adicionarCarta(carta.id);
+                input.value = "";
+                sugestoesDiv.style.display = "none";
+                addBtn.style.display = "none";
+            };
+            sugestoesDiv.appendChild(item);
+        });
+
+        sugestoesDiv.style.display = "block";
+    } catch (err) {
+        console.error("Erro sugestões:", err);
+        sugestoesDiv.style.display = "none";
+    }
+}
+
+async function adicionarPorNomeOuPrimeiraSugestao() {
+    const termo = input.value.trim();
+    if (!termo) return;
+
+    try {
+        const res = await fetch(`https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(termo)}`);
+        const carta = await res.json();
+
+        if (carta.object === "error") {
+            alert("Carta não encontrada. Tente nome mais exato ou use as sugestões.");
+            return;
+        }
+
+        await adicionarCarta(carta.id);
+        input.value = "";
+        addBtn.style.display = "none";
+        sugestoesDiv.style.display = "none";
+    } catch (err) {
+        alert("Erro ao buscar carta.");
+        console.error(err);
+    }
+}
+
+async function adicionarCarta(id) {
+    try {
+        const res = await fetch(`https://api.scryfall.com/cards/${id}`);
+        const carta = await res.json();
+
+        if (carta.object === "error") {
+            alert("Carta não encontrada no Scryfall.");
+            return;
+        }
+
+        // Correção principal: imagem da face frontal para double-faced
+        let imagem = carta.image_uris?.normal || carta.image_uris?.large || '';
+        if (carta.card_faces && carta.card_faces.length > 0) {
+            imagem = carta.card_faces[0].image_uris?.normal || 
+                     carta.card_faces[0].image_uris?.large || 
+                     imagem; // fallback para raiz se não tiver
+        }
+
+        const precoBRL = (parseFloat(carta.prices?.usd || 0) * 5).toFixed(2);
+
+        const nova = {
+            nome: carta.name,
+            nome_pt: carta.printed_name || carta.name,
+            imagem: imagem || '', // se ainda vazio, salva vazio (mas agora deve pegar)
+            preco: `R$ ${precoBRL}`,
+            quantidade: 1,
+            procurando: true
+        };
+
+        await addDoc(collection(db, "cartas"), nova);
+        carregarCartas();
+    } catch (err) {
+        console.error("Erro ao adicionar:", err);
+        alert("Erro ao salvar carta. Verifique console.");
+    }
+}
+
+async function carregarCartas() {
+    listaCartas = [];
+    const snap = await getDocs(collection(db, "cartas"));
+    snap.forEach(d => listaCartas.push({ id: d.id, ...d.data() }));
+    renderizar();
+}
+
+async function toggleProcurando(id) {
+    const carta = listaCartas.find(c => c.id === id);
+    if (!carta) return;
+    await updateDoc(doc(db, "cartas", id), { procurando: !carta.procurando });
+    carregarCartas();
+}
+
+async function removerCarta(id) {
+    if (!confirm("Remover esta carta?")) return;
+    await deleteDoc(doc(db, "cartas", id));
+    carregarCartas();
+}
+
+function renderizar() {
+    const grid = document.getElementById("lista");
+    grid.innerHTML = "";
+
+    const exibidas = isAdmin ? listaCartas : listaCartas.filter(c => c.procurando);
+
+    exibidas.sort((a, b) => {
+        const nomeA = (a.nome_pt || a.nome).toLowerCase();
+        const nomeB = (b.nome_pt || b.nome).toLowerCase();
+        if (nomeA !== nomeB) return nomeA.localeCompare(nomeB);
+        const precoA = parseFloat(a.preco.replace("R$ ", "").replace(",", ".")) || 0;
+        const precoB = parseFloat(b.preco.replace("R$ ", "").replace(",", ".")) || 0;
+        return precoA - precoB;
     });
 
-    window.onload = () => {
-        console.log("Página carregada - renderizando lista");
-        renderizarLista();
-    };
+    exibidas.forEach(c => {
+        const card = document.createElement("div");
+        card.className = `card ${c.procurando ? 'procurando' : ''}`;
 
-    async function buscarSugestoes() {
-        if (!isAdmin) return;
-        const nome = document.getElementById("busca").value.trim();
-        if (nome.length < 2) {
-            document.getElementById("sugestoes").innerHTML = "";
-            return;
+        card.innerHTML = `
+            <img src="${c.imagem}" alt="${c.nome_pt}" onerror="this.src='https://cards.scryfall.io/normal/front/0/0/00000000-0000-0000-0000-000000000000.jpg'; this.alt='Imagem não disponível';">
+            <h3>${c.nome_pt}</h3>
+            <div class="price">${c.preco}</div>
+            <p>Qtd: ${c.quantidade}</p>
+            ${isAdmin ? '<div class="admin-controls"></div>' : ''}
+        `;
+
+        if (isAdmin) {
+            const controls = card.querySelector(".admin-controls");
+
+            const btnToggle = document.createElement("button");
+            btnToggle.className = "btn-procurando";
+            btnToggle.textContent = c.procurando ? "✔ Procurando" : "Marcar como procurada";
+            btnToggle.addEventListener("click", () => toggleProcurando(c.id));
+
+            const btnRemover = document.createElement("button");
+            btnRemover.className = "btn-remover";
+            btnRemover.textContent = "Remover";
+            btnRemover.addEventListener("click", () => removerCarta(c.id));
+
+            controls.appendChild(btnToggle);
+            controls.appendChild(btnRemover);
         }
-        try {
-            console.log("Buscando sugestões para:", nome);
-            const resp = await fetch(`https://api.scryfall.com/cards/autocomplete?q=${encodeURIComponent(nome)}`);
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const data = await resp.json();
-            const sugestoesDiv = document.getElementById("sugestoes");
-            sugestoesDiv.innerHTML = "";
-            for (let nomeCarta of data.data.slice(0, 6)) {
-                try {
-                    const cartaResp = await fetch(`https://api.scryfall.com/cards/named?exact=${encodeURIComponent(nomeCarta)}`);
-                    const carta = await cartaResp.json();
-                    let img = carta.image_uris?.small || 'https://via.placeholder.com/48?text=?';
-                    if (carta.card_faces?.[0]?.image_uris?.small) {
-                        img = carta.card_faces[0].image_uris.small;
-                    }
-                    const div = document.createElement("div");
-                    div.classList.add("suggestion-item");
-                    div.innerHTML = `<img src="${img}"><span>${nomeCarta}</span>`;
-                    div.addEventListener("click", () => {
-                        adicionarCartaPorNome(nomeCarta);
-                        sugestoesDiv.innerHTML = "";
-                        document.getElementById("busca").value = "";
-                    });
-                    sugestoesDiv.appendChild(div);
-                } catch (err) {
-                    console.warn(`Falha miniatura ${nomeCarta}:`, err);
-                }
-            }
-        } catch (err) {
-            console.error("Erro busca sugestões:", err);
-        }
-    }
 
-    async function adicionarCartaPorNome(nomeCarta) {
-        try {
-            console.log("Adicionando carta:", nomeCarta);
-            const query = `!"${nomeCarta}"`;
-            const resp = await fetch(`https://api.scryfall.com/cards/search?q=${encodeURIComponent(query)}&order=usd`);
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const data = await resp.json();
-            if (!data.data?.length) {
-                alert(`Carta "${nomeCarta}" não encontrada.`);
-                return;
-            }
-            let menorPrecoUSD = Infinity;
-            let imagemEscolhida = null;
-            for (const carta of data.data) {
-                const precos = [
-                    parseFloat(carta.prices?.usd),
-                    parseFloat(carta.prices?.usd_foil),
-                    parseFloat(carta.prices?.usd_etched)
-                ].filter(v => !isNaN(v) && v > 0);
-                if (precos.length > 0) {
-                    menorPrecoUSD = Math.min(menorPrecoUSD, ...precos);
-                }
-                let img = null;
-                if (carta.image_uris) {
-                    img = carta.image_uris.normal || carta.image_uris.large || carta.image_uris.png;
-                } else if (carta.card_faces?.[0]?.image_uris) {
-                    img = carta.card_faces[0].image_uris.normal ||
-                          carta.card_faces[0].image_uris.large ||
-                          carta.card_faces[0].image_uris.png;
-                }
-                if (img && !imagemEscolhida) imagemEscolhida = img;
-            }
-            if (menorPrecoUSD === Infinity) menorPrecoUSD = 0;
-            if (!imagemEscolhida) {
-                alert(`Nenhuma imagem para "${nomeCarta}".`);
-                return;
-            }
-            const precoBRL = menorPrecoUSD > 0 ? (menorPrecoUSD * COTACAO_DOLAR).toFixed(2) : "—";
-            let cartaExistente = listaCartas.find(c => c.nome === nomeCarta);
-            if (cartaExistente) {
-                cartaExistente.quantidade += 1;
-                cartaExistente.preco = precoBRL;
-                cartaExistente.imagem = imagemEscolhida;
-            } else {
-                listaCartas.push({
-                    id: Date.now(),
-                    nome: nomeCarta,
-                    imagem: imagemEscolhida,
-                    preco: precoBRL,
-                    quantidade: 1,
-                    procurando: true
-                });
-            }
-            salvar();
-            renderizarLista();
-        } catch (err) {
-            console.error("Erro ao adicionar carta:", err);
-            alert("Erro ao buscar carta. Veja console (F12).");
-        }
-    }
+        grid.appendChild(card);
+    });
+}
 
-    function toggleProcurando(id) {
-        listaCartas = listaCartas.map(c => c.id === id ? { ...c, procurando: !c.procurando } : c);
-        salvar();
-        renderizarLista();
-    }
-
-    function removerCarta(id) {
-        if (!confirm("Remover esta carta?")) return;
-        listaCartas = listaCartas.filter(c => c.id !== id);
-        salvar();
-        renderizarLista();
-    }
-
-    function salvar() {
-        try {
-            localStorage.setItem("cartasMTG", JSON.stringify(listaCartas));
-            console.log("Lista salva no localStorage:", listaCartas.length, "cartas");
-        } catch (e) {
-            console.error("Erro ao salvar localStorage:", e);
-        }
-    }
-
-    function renderizarLista() {
-        console.log("Renderizando lista - total cartas:", listaCartas.length);
-        const lista = document.getElementById("lista");
-        lista.innerHTML = "";
-        const cartasExibidas = isAdmin ? listaCartas : listaCartas.filter(c => c.procurando);
-        if (cartasExibidas.length === 0) {
-            lista.innerHTML = '<p style="text-align:center; color:#777; grid-column:1/-1; padding:40px;">Nenhuma carta na lista ainda.</p>';
-            console.log("Lista vazia exibida");
-            return;
-        }
-        cartasExibidas.forEach(carta => {
-            const div = document.createElement("div");
-            div.classList.add("card");
-            if (carta.procurando) div.classList.add("procurando");
-            const precoClasse = carta.preco === "—" ? "price none" : "price";
-            div.innerHTML = `
-                <img src="${carta.imagem}" alt="${carta.nome}" loading="lazy">
-                <p><strong>${carta.nome}</strong></p>
-                <div class="${precoClasse}">R$ ${carta.preco}</div>
-                <p>Qtd: ${carta.quantidade}</p>
-                ${isAdmin ? `
-                    <button class="btn-procurando" onclick="toggleProcurando(${carta.id})">
-                        ${carta.procurando ? "✔ Procurando" : "Marcar Procurando"}
-                    </button>
-                    <button class="btn-remover" onclick="removerCarta(${carta.id})">Remover</button>
-                ` : ""}
-            `;
-            lista.appendChild(div);
-        });
-    }
+carregarCartas();
 </script>
 </body>
 </html>
